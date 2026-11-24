@@ -1,0 +1,34 @@
+{
+  "name": "match-live-server",
+  "version": "1.0.0",
+  "description": "深圳技术大学足球赛况系统轻量后端服务 (镜像端口 3002)",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "start": "ts-node -r tsconfig-paths/register src/main.ts",
+    "start:dev": "ts-node -r tsconfig-paths/register src/main.ts",
+    "start:prod": "node dist/server/src/main",
+    "test:state-machine": "ts-node -r tsconfig-paths/register src/test-suite.ts",
+    "test:e2e-sim": "ts-node -r tsconfig-paths/register src/e2e-dual-screen-sim.ts",
+    "test:possession-clock": "ts-node -r tsconfig-paths/register src/test-possession-clock.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.28",
+    "@nestjs/core": "^11.1.28",
+    "@nestjs/platform-express": "^11.1.28",
+    "@nestjs/swagger": "^11.4.6",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.18.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3"
+  }
+}

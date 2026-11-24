@@ -1,0 +1,623 @@
+/* sztufa-admin 风格：现场记录操控台样式表 */
+.live-desk-container {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 顶部紫蓝渐变顶栏 (经典 sztufa-admin 品牌风范) */
+.desk-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--primary-gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+  padding: 16px 24px;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.25);
+  color: #ffffff;
+}
+
+.desk-header .title-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.desk-header h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  margin: 0;
+}
+
+.desk-header-select {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.desk-header-select:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.desk-header-select option {
+  color: #0f172a;
+  background: #ffffff;
+}
+
+/* 中央大比分与时钟白底看板 */
+.scoreboard-clock-banner {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: var(--shadow-sm);
+  padding: 24px 32px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 32px;
+}
+
+.team-summary {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.team-summary.home {
+  justify-content: flex-end;
+}
+
+.team-summary.away {
+  justify-content: flex-start;
+}
+
+.team-summary .team-name {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.team-summary .score-box {
+  font-size: 2.6rem;
+  font-weight: 900;
+  background: #f8fafc;
+  padding: 4px 22px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  min-width: 68px;
+  text-align: center;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.team-summary .score-box.home {
+  color: #1a56db;
+}
+
+.team-summary .score-box.away {
+  color: #0284c7;
+}
+
+/* 时钟中心区 */
+.clock-center-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.clock-digits {
+  font-size: 2.5rem;
+  font-weight: 900;
+  font-family: monospace;
+  color: #0f172a;
+  letter-spacing: 2px;
+}
+
+.clock-status-pill {
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.clock-status-pill.running {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.clock-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.action-btn.primary {
+  background: var(--primary-color, #667eea);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+}
+
+.action-btn.primary:hover {
+  background: var(--primary-hover, #5a67d8);
+  transform: translateY(-1px);
+}
+
+.action-btn.secondary {
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  box-shadow: var(--shadow-xs);
+}
+
+.action-btn.secondary:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.action-btn.danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.action-btn.danger:hover {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.action-btn.btn-clicked {
+  opacity: 0.55;
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  transform: scale(0.97);
+  transition: all 1s ease;
+}
+
+/* 控球率进度条 */
+.possession-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #ffffff;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: var(--shadow-sm);
+}
+
+.possession-bar {
+  height: 10px;
+  border-radius: 6px;
+  display: flex;
+  overflow: hidden;
+  background: #f1f5f9;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.possession-fill-home {
+  background: #1a56db;
+  transition: width 0.3s ease;
+}
+
+.possession-fill-away {
+  background: #0284c7;
+  transition: width 0.3s ease;
+}
+
+/* 双侧战术对抗核心操作区 */
+.battlefield-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.team-action-card {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: all 0.25s ease;
+}
+
+.card-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 12px;
+}
+
+.action-buttons-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.big-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-xs);
+}
+
+.big-action-btn:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  box-shadow: var(--shadow-sm);
+}
+
+.big-action-btn.goal {
+  grid-column: span 2;
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 4px 14px rgba(30, 64, 175, 0.25);
+}
+
+.big-action-btn.goal:hover {
+  filter: brightness(1.08);
+}
+
+.big-action-btn.possession-active {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #047857;
+}
+
+/* 底部下方面板：时间线流 + 统计预览 */
+.desk-bottom-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 20px;
+}
+
+.panel-card {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 模态弹窗样式 (白色卡片 + 柔和毛玻璃遮罩) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  width: 92%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-xl);
+  color: #0f172a;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-input {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  background: #ffffff;
+}
+
+/* 按钮点击瞬时反馈效果 */
+.action-active {
+  transform: scale(0.96) !important;
+  box-shadow: 0 0 12px rgba(102, 126, 234, 0.4) !important;
+}
+
+/* 操作轻提示 Toast */
+.desk-toast-pill {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  border: 1px solid #10b981;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25);
+  padding: 10px 22px;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #f8fafc;
+  z-index: 1000;
+  animation: slideDownFade 0.25s ease-out;
+}
+
+@keyframes slideDownFade {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* 移动端主客队操作区切换器 (桌面端默认隐藏) */
+.mobile-team-switcher {
+  display: none;
+}
+
+.battlefield-col {
+  width: 100%;
+}
+
+/* ============================================================
+   移动端与窄屏设备专属响应式优化 (<= 768px)
+   ============================================================ */
+@media (max-width: 768px) {
+  .live-desk-container {
+    padding: 10px;
+    gap: 12px;
+  }
+
+  /* 顶部顶栏自适应折叠 */
+  .desk-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 14px;
+    gap: 10px;
+    border-radius: 12px;
+  }
+
+  .desk-header .title-badge {
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .desk-header h1 {
+    font-size: 1.05rem;
+  }
+
+  .desk-header-select {
+    width: 100%;
+    max-width: 100%;
+    font-size: 0.82rem;
+    padding: 6px 10px;
+  }
+
+  .desk-header > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+
+  .desk-header .action-btn {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  /* 大比分与中央时钟卡片紧凑排版 */
+  .scoreboard-clock-banner {
+    padding: 12px 10px;
+    gap: 8px;
+    border-radius: 12px;
+  }
+
+  .team-summary {
+    gap: 8px;
+  }
+
+  .team-summary .team-name {
+    font-size: 0.95rem;
+    max-width: 68px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .team-summary .score-box {
+    font-size: 1.6rem;
+    padding: 2px 10px;
+    min-width: 44px;
+    border-radius: 8px;
+  }
+
+  .clock-digits {
+    font-size: 1.6rem;
+    letter-spacing: 1px;
+  }
+
+  .clock-status-pill {
+    padding: 2px 8px;
+    font-size: 0.72rem;
+  }
+
+  .clock-actions .action-btn {
+    padding: 6px 10px;
+    font-size: 0.78rem;
+  }
+
+  /* 移动端主客队 Tab 分栏切换条激活展示 */
+  .mobile-team-switcher {
+    display: flex;
+    gap: 8px;
+    background: #e2e8f0;
+    padding: 4px;
+    border-radius: 10px;
+  }
+
+  .mobile-team-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 8px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-team-tab .team-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .mobile-team-tab .team-dot.home {
+    background: #1a56db;
+  }
+
+  .mobile-team-tab .team-dot.away {
+    background: #0284c7;
+  }
+
+  .mobile-team-tab.active.home {
+    background: #ffffff;
+    color: #1a56db;
+    box-shadow: 0 2px 8px rgba(26, 86, 219, 0.18);
+  }
+
+  .mobile-team-tab.active.away {
+    background: #ffffff;
+    color: #0284c7;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.18);
+  }
+
+  /* 核心操作区单栏化与切换 */
+  .battlefield-grid {
+    display: block;
+  }
+
+  .battlefield-col.mobile-hidden {
+    display: none !important;
+  }
+
+  .team-action-card {
+    padding: 14px;
+    border-radius: 12px;
+    gap: 12px;
+  }
+
+  .card-title-row h2 {
+    font-size: 1.05rem;
+  }
+
+  .action-buttons-grid {
+    gap: 8px;
+  }
+
+  .big-action-btn {
+    padding: 10px 6px;
+    border-radius: 8px;
+  }
+
+  .big-action-btn.goal {
+    min-height: 40px;
+    padding: 6px 10px;
+    font-size: 0.95rem;
+  }
+
+  /* 底部面板单列堆叠垂直顺延 */
+  .desk-bottom-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .panel-card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  /* 弹窗小屏适配 */
+  .modal-box {
+    width: 95%;
+    padding: 16px 12px;
+    gap: 12px;
+    border-radius: 12px;
+    max-height: 92vh;
+  }
+}

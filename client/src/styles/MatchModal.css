@@ -1,0 +1,507 @@
+/* 观众端：对齐设计图的比赛详情弹窗与关键事件时间线 */
+
+.match-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+/* 弹窗外框：对齐最新设计图的温润米灰底色大圆角卡片 */
+.match-modal-card {
+  background: #f5f5f0;
+  border-radius: 22px;
+  width: 100%;
+  max-width: 860px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  border: 1px solid #e5e5dc;
+  padding: 24px 28px;
+  box-sizing: border-box;
+}
+
+/* 顶部状态与标题栏 */
+.modal-top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.modal-top-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-status-pill {
+  background: #475569;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 3px 12px;
+  border-radius: 9999px;
+  letter-spacing: 0.5px;
+}
+
+.modal-status-pill.live {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.modal-header-title-text {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.modal-round-close-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #475569;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.modal-round-close-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  transform: scale(1.05);
+}
+
+/* 核心比分卡片：浅蓝灰优雅圆角框 (对齐图4) */
+.modal-hero-score-card {
+  background: #edf3f8;
+  border: 1px solid #dce5f0;
+  border-radius: 16px;
+  padding: 20px 32px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.modal-team-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-team-circle-logo {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.modal-team-unit-name {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+  max-width: 170px;
+  line-height: 1.3;
+}
+
+.modal-center-score-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px;
+}
+
+.modal-big-score-digits {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+.modal-shootout-score-pill {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: 0.5px;
+}
+
+/* 比赛地点与时间双信息方块网格 (对齐图4) */
+.modal-info-tiles-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.modal-info-tile {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.modal-info-tile-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.modal-info-tile-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.modal-info-tile-val {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Tab 切换栏 (对齐图4: 关键事件 | 双方阵容) */
+.modal-nav-tabs {
+  display: flex;
+  gap: 28px;
+  border-bottom: 1px solid #e2e4dc;
+  margin-bottom: 16px;
+}
+
+.modal-nav-tab-btn {
+  background: transparent;
+  border: none;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #64748b;
+  padding: 8px 4px 10px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modal-nav-tab-btn:hover {
+  color: #0f172a;
+}
+
+.modal-nav-tab-btn.active {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.modal-nav-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #0f172a;
+  border-radius: 2px;
+}
+
+/* 弹窗内容滚动区 */
+.modal-scroll-body {
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 6px;
+}
+
+.modal-scroll-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.modal-scroll-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* 时间线标题 */
+.timeline-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 18px;
+}
+
+/* 时间线中央轴布局 (对齐图2、3) */
+.timeline-vertical-stream {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 10px 0 24px;
+}
+
+/* 中央贯穿竖线 */
+.timeline-vertical-stream::before {
+  content: '';
+  position: absolute;
+  top: 24px;
+  bottom: 40px;
+  left: 50%;
+  width: 2px;
+  background-color: #e2e8f0;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+/* 顶部开赛节点 */
+.timeline-start-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+  margin-bottom: 8px;
+}
+
+.timeline-start-text {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.timeline-start-icon-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* 单条时间线事件项：左(主队) - 中(分钟/图标) - 右(客队) */
+.timeline-event-row {
+  display: grid;
+  grid-template-columns: 1fr 52px 1fr;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  z-index: 2;
+}
+
+/* 事件卡片 (对齐图2、3) */
+.timeline-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 92%;
+}
+
+.timeline-card.home-card {
+  margin-left: auto;
+  text-align: left;
+}
+
+.timeline-card.away-card {
+  margin-right: auto;
+  text-align: left;
+  border-left: 3px solid #10b981; /* 客队突出修饰绿边 (对齐图2、3) */
+}
+
+.timeline-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.timeline-card-action {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* 中间分钟刻度与事件图标 */
+.timeline-center-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  z-index: 2;
+}
+
+.timeline-center-minute {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #475569;
+  min-width: 44px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.timeline-center-icon-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* 中场 HT 居中时间轴节点 */
+.timeline-ht-node {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 14px 0;
+  position: relative;
+  z-index: 2;
+}
+
+.timeline-ht-badge {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 4px 16px;
+  border-radius: 9999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  letter-spacing: 0.5px;
+}
+
+/* 点球大战独立标题 */
+.shootout-section-header {
+  text-align: center;
+  margin: 16px 0 8px;
+  position: relative;
+  z-index: 2;
+}
+
+.shootout-section-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.5px;
+}
+
+/* 点球居中节点：绿色圆形白字“点” */
+.shootout-green-dot-node {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #10b981;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.4);
+}
+
+/* 点球事件白底圆角条 (对齐图2) */
+.shootout-kick-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.shootout-kick-card.home {
+  margin-left: auto;
+}
+
+.shootout-kick-card.away {
+  margin-right: auto;
+}
+
+/* 底部比赛结束节点 */
+.timeline-finish-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 12px 0 6px;
+  z-index: 2;
+}
+
+.timeline-finish-flag {
+  font-size: 1.1rem;
+}
+
+.timeline-finish-text {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+/* 底部图例栏 (对齐图2) */
+.timeline-legend-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 0.78rem;
+  color: #64748b;
+  border-top: 1px solid #e2e4dc;
+  padding-top: 14px;
+  margin-top: 10px;
+}
+
+.timeline-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
