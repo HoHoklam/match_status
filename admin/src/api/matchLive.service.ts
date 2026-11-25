@@ -1,6 +1,7 @@
 import { request } from './http';
 import {
   MatchLiveSnapshot,
+  PlayingHalf,
   SubmitLiveActionDto,
   ChangeClockPeriodDto,
   SwitchPossessionDto,
@@ -24,11 +25,16 @@ export const matchLiveService = {
     request<{ success: boolean; id: string }>(`/matches/${id}`, {
       method: 'DELETE',
     }),
-  getLiveSnapshot: (id: string) => request<MatchLiveSnapshot>(`/matches/${id}/live`),
+  getLiveSnapshot: (id: string, signal?: AbortSignal) => request<MatchLiveSnapshot>(`/matches/${id}/live`, { signal, cache: 'no-store' }),
   updateClock: (id: string, dto: ChangeClockPeriodDto) =>
     request<MatchLiveSnapshot>(`/matches/${id}/live/clock`, {
       method: 'PATCH',
       body: JSON.stringify(dto),
+    }),
+  announceStoppage: (id: string, half: PlayingHalf, minutes: number) =>
+    request<MatchLiveSnapshot>(`/matches/${id}/live/stoppage`, {
+      method: 'PATCH',
+      body: JSON.stringify({ half, minutes }),
     }),
   switchPossession: (id: string, dto: SwitchPossessionDto) =>
     request<MatchLiveSnapshot>(`/matches/${id}/live/possession`, {

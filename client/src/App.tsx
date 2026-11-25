@@ -1,71 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { MatchLiveSnapshot } from '@shared/types';
-import { matchesApi } from './api/matches';
+import { projectMatchClock } from '@shared/matchClock';
 import { MatchCard } from './components/MatchCard';
 import { MatchDetailModal } from './components/MatchDetailModal/MatchDetailModal';
-import { useLiveMatchSync } from './hooks/useLiveMatchSync';
+import { useLiveMatches } from './hooks/useLiveMatches';
 import { Trophy, RefreshCw } from 'lucide-react';
 import './styles/index.css';
 
 export const App: React.FC = () => {
-  const [matches, setMatches] = useState<MatchLiveSnapshot[]>([]);
-  const [selectedMatchId, setSelectedMatchId] = useState<string | null>('sztu-match-2026-001');
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false); // 默认关闭弹窗，首屏完整展示所有赛程
-  const [loading, setLoading] = useState<boolean>(true);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-
-  // 加载比赛列表
-  const fetchMatches = async () => {
-    try {
-      setLoading(true);
-      const list = await matchesApi.getMatches();
-      setMatches(list);
-    } catch (err) {
-      console.error('加载比赛列表失败:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRefreshClick = async () => {
-    setIsRefreshing(true);
-    await fetchMatches();
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
-  };
+  const { matches, loading, refreshing, error, refresh } = useLiveMatches();
+  const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
+  const [now, setNow] = useState(Date.now);
+  const hasRunningMatch = matches.some(match => match.clock.isRunning);
 
   useEffect(() => {
-    fetchMatches();
+    if (!hasRunningMatch) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [hasRunningMatch]);
 
-    let channel: BroadcastChannel | null = null;
-    try {
-      channel = new BroadcastChannel('sztufa_live_bus');
-      channel.onmessage = (e) => {
-        if (
-          e.data?.type === 'MATCH_CREATED' ||
-          e.data?.type === 'MATCH_DELETED' ||
-          e.data?.type === 'MATCH_LIVE_UPDATE'
-        ) {
-          fetchMatches();
-        }
-      };
-    } catch (err) {
-      console.warn('BroadcastChannel error:', err);
-    }
-
-    return () => {
-      channel?.close();
-    };
-  }, []);
-
-  // 监听当前选中的比赛实时数据（3s 轮询 + BroadcastChannel）
-  const { data: liveData } = useLiveMatchSync(selectedMatchId || 'sztu-match-2026-001');
-
-  const handleOpenDetail = (matchId: string) => {
-    setSelectedMatchId(matchId);
-    setIsModalOpen(true);
-  };
+  const liveMatches = matches.map(match => projectMatchClock(match, now));
+  const liveData = liveMatches.find(match => match.id === selectedMatchId) ?? null;
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', paddingBottom: '40px' }}>
@@ -106,9 +60,10 @@ export const App: React.FC = () => {
         </div>
 
         <button
-          onClick={handleRefreshClick}
+          onClick={() => void refresh(true)}
+          disabled={refreshing}
           style={{
-            background: isRefreshing ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.18)',
+            background: refreshing ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.18)',
             border: '1px solid rgba(255, 255, 255, 0.4)',
             color: '#fff',
             padding: '7px 14px',
@@ -119,18 +74,18 @@ export const App: React.FC = () => {
             fontSize: '0.85rem',
             fontWeight: 600,
             cursor: 'pointer',
-            transform: isRefreshing ? 'scale(0.97)' : 'scale(1)',
+            transform: refreshing ? 'scale(0.97)' : 'scale(1)',
             transition: 'all 0.2s ease',
           }}
           onMouseEnter={(e) => {
-            if (!isRefreshing) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.28)';
+            if (!refreshing) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.28)';
           }}
           onMouseLeave={(e) => {
-            if (!isRefreshing) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)';
+            if (!refreshing) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)';
           }}
         >
-          <RefreshCw size={14} className={isRefreshing ? 'spin-icon' : ''} />
-          {isRefreshing ? '已刷新' : '刷新赛程'}
+          <RefreshCw size={14} className={refreshing ? 'spin-icon' : ''} />
+          {refreshing ? '刷新中…' : '刷新赛程'}
         </button>
       </header>
 
@@ -145,14 +100,15 @@ export const App: React.FC = () => {
           </span>
         </div>
 
+        {error && <p role="status">连接中断，正在重试。</p>}
         {loading && matches.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 0', color: '#94a3b8' }}>
             正在加载赛程数据...
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {matches.map((m) => (
-              <MatchCard key={m.id} match={m} onOpenDetail={handleOpenDetail} />
+            {liveMatches.map((m) => (
+              <MatchCard key={m.id} match={m} onOpenDetail={setSelectedMatchId} />
             ))}
           </div>
         )}
@@ -160,9 +116,9 @@ export const App: React.FC = () => {
 
       {/* 赛况详情弹窗 */}
       <MatchDetailModal
-        isOpen={isModalOpen}
+        isOpen={Boolean(liveData)}
         matchData={liveData}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => setSelectedMatchId(null)}
       />
     </div>
   );

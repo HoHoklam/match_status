@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { clockAtSecond, formatMatchMinute, playingHalf, projectMatchClock } from '@shared/matchClock';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { LocalMatchStore } from './storage/local-match-store';
 import {
   MatchLiveSnapshot,
@@ -8,7 +9,7 @@ import {
   CreateMatchDto,
 } from '@shared/types';
 import { SubmitLiveActionDto } from './dto/live-action.dto';
-import { ChangeClockPeriodDto, SwitchPossessionDto } from './dto/match-period.dto';
+import { AnnounceStoppageDto, ChangeClockPeriodDto, SwitchPossessionDto } from './dto/match-period.dto';
 import { UpdateStatsDeltaDto } from './dto/update-stats.dto';
 
 function formatKickoffTime(date: Date = new Date()): string {
@@ -20,34 +21,21 @@ function formatKickoffTime(date: Date = new Date()): string {
   return `${y}-${m}-${d} ${hh}:${mm}`;
 }
 
-function formatEventMinute(match: MatchLiveSnapshot, minute: number): string {
-  const halfMin = match.halfDuration || 45;
-  const fullMin = match.fullDuration || (halfMin * 2);
-
-  const isFirstHalf =
-    match.clock.period === 'FIRST_HALF' ||
-    (match.clock.period === 'PAUSED' && match.clock.previousPeriod === 'FIRST_HALF');
-  const isSecondHalf =
-    match.clock.period === 'SECOND_HALF' ||
-    (match.clock.period === 'PAUSED' && match.clock.previousPeriod === 'SECOND_HALF');
-
-  if (isFirstHalf && minute > halfMin) {
-    const extra = minute - halfMin;
-    return `${halfMin}+${extra}'`;
-  }
-  if (isSecondHalf && minute > fullMin) {
-    const extra = minute - fullMin;
-    return `${fullMin}+${extra}'`;
-  }
-  return `${minute}'`;
-}
+const clockTransitions: Record<MatchPeriod, MatchPeriod[]> = {
+  NOT_STARTED: ['FIRST_HALF'],
+  FIRST_HALF: ['PAUSED', 'HALF_TIME', 'FINISHED'],
+  HALF_TIME: ['SECOND_HALF', 'FINISHED'],
+  SECOND_HALF: ['PAUSED', 'FINISHED'],
+  PAUSED: ['FIRST_HALF', 'SECOND_HALF', 'HALF_TIME', 'FINISHED'],
+  FINISHED: [],
+};
 
 @Injectable()
 export class MatchLiveService {
   private readonly store = new LocalMatchStore();
 
   public getMatches(): MatchLiveSnapshot[] {
-    return this.store.getAll();
+    return this.store.getAll().map(match => projectMatchClock(match));
   }
 
   public createMatch(dto: CreateMatchDto): MatchLiveSnapshot {
@@ -162,91 +150,83 @@ export class MatchLiveService {
     if (!match) {
       throw new NotFoundException(`比赛 ${matchId} 不存在`);
     }
-    // 动态校准控球秒数（若比赛进行中）
-    this.recalculatePossession(match);
+    return projectMatchClock(match);
+  }
+
+  private getEditableMatch(matchId: string): MatchLiveSnapshot {
+    const match = this.getLiveSnapshot(matchId);
+    if (match.clock.period === 'FINISHED') {
+      throw new ConflictException('比赛已完赛，请先撤销完赛再修改赛况');
+    }
     return match;
   }
 
   public updateClock(matchId: string, dto: ChangeClockPeriodDto): MatchLiveSnapshot {
     const match = this.getLiveSnapshot(matchId);
-
-    const oldPeriod = match.clock.period;
-    match.clock.period = dto.period;
-
-    if (dto.period === 'FIRST_HALF') {
-      match.clock.isRunning = true;
-      if (!match.clock.lastStartedAt) {
-        match.clock.lastStartedAt = Date.now();
-      }
-      if (oldPeriod === 'NOT_STARTED') {
-        match.clock.currentSecond = 0;
-        match.clock.displayMinute = 1;
-        match.clock.displayTime = '00:00';
-        if (!match.kickoffTime) {
-          match.kickoffTime = formatKickoffTime();
-        }
-        // 开球节点已精简，无需在时间线插入冗余开球标签
-      }
-    } else if (dto.period === 'HALF_TIME') {
-      match.clock.isRunning = false;
-      match.clock.lastStartedAt = null;
-      const confirmedMin = dto.confirmedMinute ?? match.halfDuration ?? 45;
-      match.clock.halfTimeMinute = confirmedMin;
-      match.clock.secondHalfStartMinute = confirmedMin;
-
-      // 插入中场休息贯穿分界节点 (文案简化为 "HT 中场休息"，时段标记为 HALF_TIME)
-      this.insertPeriodNode(match, 'HT 中场休息', confirmedMin, 'HALF_TIME');
-    } else if (dto.period === 'SECOND_HALF') {
-      match.clock.isRunning = true;
-      match.clock.lastStartedAt = Date.now();
-      if (oldPeriod === 'HALF_TIME') {
-        const startMin = match.halfDuration || 45;
-        const startSec = startMin * 60;
-        match.clock.currentSecond = startSec;
-        match.clock.displayMinute = startMin;
-        match.clock.displayTime = `${startMin.toString().padStart(2, '0')}:00`;
-        // 下半场开球节点已精简，中场休息已作为分界线
-      }
-    } else if (dto.period === 'FINISHED') {
-      match.clock.isRunning = false;
-      match.clock.lastStartedAt = null;
-      const endMinute = Math.max(1, Math.ceil(match.clock.currentSecond / 60));
-      this.insertPeriodNode(match, 'FT 比赛结束', endMinute, 'FINISHED');
-    } else if (dto.period === 'PAUSED') {
-      if (oldPeriod === 'FIRST_HALF' || oldPeriod === 'SECOND_HALF') {
-        match.clock.previousPeriod = oldPeriod;
-      }
-      match.clock.isRunning = false;
-      match.clock.lastStartedAt = null;
+    const { clock } = match;
+    const next = dto.period;
+    const half = playingHalf(clock);
+    if (dto.expectedVersion !== undefined && dto.expectedVersion !== match.version) {
+      throw new ConflictException('比赛已更新，请确认当前状态后重试');
     }
 
-    const targetSec = dto.currentSecond !== undefined ? dto.currentSecond : dto.resetSecond;
-    if (targetSec !== undefined) {
-      match.clock.currentSecond = targetSec;
-      match.clock.displayMinute = Math.max(1, Math.ceil(targetSec / 60));
-      const min = Math.floor(targetSec / 60);
-      const sec = targetSec % 60;
-      match.clock.displayTime = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+    const changingSettlement = clock.period === 'PAUSED' && next === 'PAUSED'
+      && half === 'SECOND_HALF' && dto.regularTimeEnded !== undefined
+      && dto.regularTimeEnded !== Boolean(clock.regularTimeEnded);
+    if ((!clockTransitions[clock.period].includes(next) && !changingSettlement)
+      || (clock.period === 'PAUSED' && next === 'HALF_TIME' && half !== 'FIRST_HALF')
+      || (clock.period === 'PAUSED' && (next === 'FIRST_HALF' || next === 'SECOND_HALF') && next !== half)) {
+      throw new ConflictException('当前阶段不能执行这个时钟操作');
+    }
+    if (dto.regularTimeEnded && (next !== 'PAUSED' || half !== 'SECOND_HALF')) {
+      throw new BadRequestException('只能在下半场确认常规时间结束');
     }
 
-    if (dto.displayTime !== undefined) {
-      match.clock.displayTime = dto.displayTime;
+    const now = Date.now();
+    const isRunning = next === 'FIRST_HALF' || next === 'SECOND_HALF';
+    const halfDuration = match.halfDuration || 45;
+    const second = clock.period === 'HALF_TIME' && next === 'SECOND_HALF'
+      ? halfDuration * 60
+      : dto.currentSecond ?? dto.resetSecond ?? clock.currentSecond;
+
+    match.clock = {
+      ...clockAtSecond(clock, second),
+      period: next,
+      isRunning,
+      anchorAt: isRunning ? now : undefined,
+      lastStartedAt: isRunning ? now : null,
+      previousPeriod: next === 'PAUSED' ? half : null,
+      regularTimeEnded: next === 'PAUSED' ? dto.regularTimeEnded : undefined,
+    };
+
+    if (clock.period === 'NOT_STARTED') match.kickoffTime = match.kickoffTime || formatKickoffTime();
+    if (next === 'HALF_TIME') {
+      match.clock.halfTimeMinute = match.clock.displayMinute;
+      match.clock.secondHalfStartMinute = halfDuration;
+      this.insertPeriodNode(match, 'HT 中场休息', match.clock.displayMinute, next, half);
+    } else if (next === 'FINISHED') {
+      this.insertPeriodNode(match, 'FT 比赛结束', match.clock.displayMinute, next, half);
     }
 
-    if (dto.penaltyShootout !== undefined) {
-      if (dto.penaltyShootout === null) {
-        delete match.penaltyShootout;
-      } else {
-        match.penaltyShootout = dto.penaltyShootout;
-      }
-    }
+    if (dto.penaltyShootout === null) delete match.penaltyShootout;
+    else if (dto.penaltyShootout !== undefined) match.penaltyShootout = dto.penaltyShootout;
 
     this.store.save(match);
     return match;
   }
 
-  public updatePenaltyShootout(matchId: string, dto: any): MatchLiveSnapshot {
+  public announceStoppage(matchId: string, dto: AnnounceStoppageDto): MatchLiveSnapshot {
     const match = this.getLiveSnapshot(matchId);
+    if (playingHalf(match.clock) !== dto.half || match.clock.regularTimeEnded) {
+      throw new ConflictException('只能设置当前半场的补时');
+    }
+    match.clock.announcedStoppage = { ...match.clock.announcedStoppage, [dto.half]: dto.minutes };
+    this.store.save(match);
+    return match;
+  }
+
+  public updatePenaltyShootout(matchId: string, dto: any): MatchLiveSnapshot {
+    const match = this.getEditableMatch(matchId);
     match.penaltyShootout = {
       enabled: dto.enabled !== undefined ? dto.enabled : true,
       homeScore: dto.homeScore ?? 0,
@@ -263,7 +243,7 @@ export class MatchLiveService {
   }
 
   public switchPossession(matchId: string, dto: SwitchPossessionDto): MatchLiveSnapshot {
-    const match = this.getLiveSnapshot(matchId);
+    const match = this.getEditableMatch(matchId);
     match.possessionSide = dto.side;
     if (dto.homeSeconds !== undefined) {
       match.stats.possession.homeSeconds = Math.max(0, dto.homeSeconds);
@@ -284,11 +264,14 @@ export class MatchLiveService {
   }
 
   public recordAction(matchId: string, dto: SubmitLiveActionDto): MatchLiveSnapshot {
-    const match = this.getLiveSnapshot(matchId);
+    const match = this.getEditableMatch(matchId);
+    if (dto.expectedVersion !== undefined && dto.expectedVersion !== match.version) {
+      throw new ConflictException('比赛已更新，请核对记录后再提交');
+    }
     const minute = dto.minute ?? match.clock.displayMinute ?? Math.max(1, Math.ceil(match.clock.currentSecond / 60));
     const side = dto.side;
     const secondFormatted = dto.secondFormatted || match.clock.displayTime || '00:00';
-    const displayMinuteFormatted = formatEventMinute(match, minute);
+    const displayMinuteFormatted = formatMatchMinute(match, minute);
     const currentPeriod: MatchPeriod =
       match.clock.period === 'PAUSED'
         ? match.clock.previousPeriod || 'FIRST_HALF'
@@ -481,7 +464,7 @@ export class MatchLiveService {
   }
 
   public updateStatsDelta(matchId: string, dto: UpdateStatsDeltaDto): MatchLiveSnapshot {
-    const match = this.getLiveSnapshot(matchId);
+    const match = this.getEditableMatch(matchId);
     const { statKey, side, delta } = dto;
     const current = match.stats[statKey][side];
     match.stats[statKey][side] = Math.max(0, current + delta);
@@ -490,7 +473,7 @@ export class MatchLiveService {
   }
 
   public deleteTimelineEvent(matchId: string, eventId: string): MatchLiveSnapshot {
-    const match = this.getLiveSnapshot(matchId);
+    const match = this.getEditableMatch(matchId);
     const eventIndex = match.timeline.findIndex((e) => e.id === eventId);
     if (eventIndex >= 0) {
       const evt = match.timeline[eventIndex];
@@ -547,7 +530,7 @@ export class MatchLiveService {
     return res;
   }
 
-  private insertPeriodNode(match: MatchLiveSnapshot, label: string, minute: number, period?: MatchPeriod) {
+  private insertPeriodNode(match: MatchLiveSnapshot, label: string, minute: number, period: MatchPeriod, half: ReturnType<typeof playingHalf>) {
     const node: MatchTimelineEvent = {
       id: `node-${Date.now()}`,
       matchId: match.id,
@@ -556,6 +539,7 @@ export class MatchLiveService {
       minute,
       period,
       periodLabel: label,
+      displayMinuteFormatted: formatMatchMinute(match, minute, half),
       createdAt: Date.now(),
     };
     match.timeline.push(node);

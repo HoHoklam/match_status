@@ -12,6 +12,12 @@ function runPenaltyTests() {
   const matchId = matches.length > 0 ? matches[0].id : 'test-match-1';
   console.log(`正在针对比赛 [${matchId}] 运行测试...`);
 
+  service.reset(matchId);
+  service.updateClock(matchId, { period: 'FIRST_HALF' });
+  service.updateClock(matchId, { period: 'HALF_TIME' });
+  service.updateClock(matchId, { period: 'SECOND_HALF' });
+  service.updateClock(matchId, { period: 'PAUSED', regularTimeEnded: true });
+
   // 2. 更新点球大战状态
   const shootoutState: PenaltyShootoutState = {
     enabled: true,

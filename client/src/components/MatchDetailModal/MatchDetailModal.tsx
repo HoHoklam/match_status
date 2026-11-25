@@ -1,3 +1,4 @@
+import { announcedStoppage, formatMatchMinute, matchStatusLabel, playingHalf } from '@shared/matchClock';
 import React, { useState } from 'react';
 import { MatchLiveSnapshot } from '@shared/types';
 import { resolveColorHex, isLightColor } from '../../utils/colorHelper';
@@ -22,6 +23,8 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
   if (!isOpen || !matchData) return null;
 
   const isFinished = matchData.clock.period === 'FINISHED';
+  const stoppage = announcedStoppage(matchData);
+  const half = playingHalf(matchData.clock);
   const hasAttemptedKicks = Boolean(
     matchData.penaltyShootout?.homeKicks?.some(
       (k) =>
@@ -50,8 +53,10 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
         {/* 顶部标题与关闭按钮 (对齐图4) */}
         <div className="modal-top-header">
           <div className="modal-top-title-group">
-            <span className={`modal-status-pill ${isFinished ? '' : 'live'}`}>
-              {isFinished ? '已结束' : '进行中'}
+            <span className={`modal-status-pill ${matchData.clock.isRunning ? 'live' : ''}`}>
+              {matchStatusLabel(matchData)}
+              {half && !matchData.clock.regularTimeEnded && ` · ${formatMatchMinute(matchData, matchData.clock.displayMinute)}`}
+              {stoppage !== undefined && ` · 至少补时 ${stoppage} 分钟`}
             </span>
             <span className="modal-header-title-text">赛事回顾</span>
           </div>

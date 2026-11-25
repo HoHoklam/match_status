@@ -6,6 +6,7 @@ interface TeamActionColumnProps {
   side: 'home' | 'away';
   team: MatchTeamInfo;
   isPossessing: boolean;
+  busy: boolean;
   onSwitchPossession: (side: PossessionSide) => void;
   onOpenPlayerModal: (actionType: LiveActionType, side: 'home' | 'away', goalType?: GoalType) => void;
   onQuickRecordAction: (actionType: LiveActionType, side: 'home' | 'away', isShotOnTarget?: boolean) => void;
@@ -15,6 +16,7 @@ export const TeamActionColumn: React.FC<TeamActionColumnProps> = ({
   side,
   team,
   isPossessing,
+  busy,
   onSwitchPossession,
   onOpenPlayerModal,
   onQuickRecordAction,
@@ -62,6 +64,7 @@ export const TeamActionColumn: React.FC<TeamActionColumnProps> = ({
         </div>
 
         <button
+          disabled={busy}
           className={`action-btn ${isPossessing ? 'primary' : 'secondary'}`}
           onClick={() => {
             if (!isPossessing) {
@@ -83,6 +86,7 @@ export const TeamActionColumn: React.FC<TeamActionColumnProps> = ({
       <div className="action-buttons-grid">
         {/* 进球按钮（适当改小，精致横排） */}
         <button
+          disabled={busy}
           className={`big-action-btn goal ${clickedAction === 'GOAL' ? 'action-active' : ''}`}
           onClick={() => handleActionClick('GOAL', () => onOpenPlayerModal('GOAL', side, 'regular'))}
           style={{
@@ -110,6 +114,7 @@ export const TeamActionColumn: React.FC<TeamActionColumnProps> = ({
 
         {/* 紧随进球下方的 2 列并排按钮：🎯 点球 + 🥅 乌龙球 (复用 GOAL 管道) */}
         <button
+          disabled={busy}
           className={`big-action-btn ${clickedAction === 'PENALTY' ? 'action-active' : ''}`}
           onClick={() => handleActionClick('PENALTY', () => onOpenPlayerModal('GOAL', side, 'penalty'))}
           style={{
@@ -128,6 +133,7 @@ export const TeamActionColumn: React.FC<TeamActionColumnProps> = ({
         </button>
 
         <button
+          disabled={busy}
           className={`big-action-btn ${clickedAction === 'OWN_GOAL' ? 'action-active' : ''}`}
           onClick={() => handleActionClick('OWN_GOAL', () => onOpenPlayerModal('GOAL', side, 'own_goal'))}
           style={{
@@ -147,6 +153,7 @@ export const TeamActionColumn: React.FC<TeamActionColumnProps> = ({
 
         {/* 射门 */}
         <button
+          disabled={busy}
           className={`big-action-btn ${clickedAction === 'SHOT' ? 'action-active' : ''}`}
           onClick={() => handleActionClick('SHOT', () => onQuickRecordAction('SHOT', side, false))}
         >
@@ -157,6 +164,7 @@ export const TeamActionColumn: React.FC<TeamActionColumnProps> = ({
 
         {/* 射正 */}
         <button
+          disabled={busy}
           className={`big-action-btn ${clickedAction === 'SHOT_ON_TARGET' ? 'action-active' : ''}`}
           onClick={() => handleActionClick('SHOT_ON_TARGET', () => onQuickRecordAction('SHOT_ON_TARGET', side, true))}
         >
@@ -167,6 +175,7 @@ export const TeamActionColumn: React.FC<TeamActionColumnProps> = ({
 
         {/* 角球 */}
         <button
+          disabled={busy}
           className={`big-action-btn ${clickedAction === 'CORNER' ? 'action-active' : ''}`}
           onClick={() => handleActionClick('CORNER', () => onQuickRecordAction('CORNER', side))}
         >
@@ -177,6 +186,7 @@ export const TeamActionColumn: React.FC<TeamActionColumnProps> = ({
 
         {/* 任意球 */}
         <button
+          disabled={busy}
           className={`big-action-btn ${clickedAction === 'FREE_KICK' ? 'action-active' : ''}`}
           onClick={() => handleActionClick('FREE_KICK', () => onQuickRecordAction('FREE_KICK', side))}
         >
@@ -187,6 +197,7 @@ export const TeamActionColumn: React.FC<TeamActionColumnProps> = ({
 
         {/* 犯规 */}
         <button
+          disabled={busy}
           className={`big-action-btn ${clickedAction === 'FOUL' ? 'action-active' : ''}`}
           onClick={() => handleActionClick('FOUL', () => onQuickRecordAction('FOUL', side))}
         >
@@ -197,6 +208,7 @@ export const TeamActionColumn: React.FC<TeamActionColumnProps> = ({
 
         {/* 换人 */}
         <button
+          disabled={busy}
           className={`big-action-btn ${clickedAction === 'SUB' ? 'action-active' : ''}`}
           onClick={() => handleActionClick('SUB', () => onOpenPlayerModal('SUBSTITUTION', side))}
         >
@@ -207,6 +219,7 @@ export const TeamActionColumn: React.FC<TeamActionColumnProps> = ({
 
         {/* 黄牌 */}
         <button
+          disabled={busy}
           className={`big-action-btn ${clickedAction === 'YELLOW' ? 'action-active' : ''}`}
           onClick={() => handleActionClick('YELLOW', () => onOpenPlayerModal('YELLOW_CARD', side))}
           style={{ borderColor: '#fde047', background: '#fefce8' }}
@@ -220,6 +233,7 @@ export const TeamActionColumn: React.FC<TeamActionColumnProps> = ({
 
         {/* 红牌 */}
         <button
+          disabled={busy}
           className={`big-action-btn ${clickedAction === 'RED' ? 'action-active' : ''}`}
           onClick={() => handleActionClick('RED', () => onOpenPlayerModal('RED_CARD', side))}
           style={{ borderColor: '#fecaca', background: '#fef2f2' }}

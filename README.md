@@ -12,7 +12,8 @@
 
 打开第 1 个终端：
 ```bash
-cd c:\Users\Hoklam\Desktop\match_status\server
+cd server
+npm ci
 npm run start:dev
 ```
 - **接口服务**: [http://localhost:3002/api/v1](http://localhost:3002/api/v1)
@@ -24,7 +25,8 @@ npm run start:dev
 
 打开第 2 个终端：
 ```bash
-cd c:\Users\Hoklam\Desktop\match_status\admin
+cd admin
+npm ci
 npm run dev
 ```
 - **操作台地址**: [http://localhost:5174](http://localhost:5174)
@@ -35,7 +37,8 @@ npm run dev
 
 打开第 3 个终端：
 ```bash
-cd c:\Users\Hoklam\Desktop\match_status\client
+cd client
+npm ci
 npm run dev
 ```
 - **展示端官网**: [http://localhost:5173](http://localhost:5173)
@@ -52,7 +55,8 @@ npm run dev
 2. **操作体验**：
    - 在左侧操作台录入 **进球**、**出牌**、**射门** 等事件。
    - 支持快捷键 **`Ctrl + Z`** 进行撤销。
-   - 右侧展示页弹窗与数据将在 **0ms 内即刻同步渲染**，实时反映最新战况！
+   - 在时钟区设置本半场的补时分钟。达到宣布时长后仍继续走表，按裁判哨声确认中场或完赛。
+   - 操作台显示提交结果，展示端每 3 秒更新赛程和已打开的详情。
 
 ---
 

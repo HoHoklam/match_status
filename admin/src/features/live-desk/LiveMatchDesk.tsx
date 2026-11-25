@@ -4,8 +4,10 @@ import {
   MatchLiveSnapshot,
   LiveActionType,
   PossessionSide,
-  LiveBroadcastMessage,
+  ChangeClockPeriodDto,
+  SubmitLiveActionDto,
 } from '@shared/types';
+import { playingHalf, projectMatchClock } from '@shared/matchClock';
 import { MatchClockPanel } from './MatchClockPanel';
 import { TeamActionColumn } from './TeamActionColumn';
 import { PossessionIndicator } from './PossessionIndicator';
@@ -13,7 +15,7 @@ import { TimelineEventStream } from './TimelineEventStream';
 import { LiveStatsPreviewBoard } from './LiveStatsPreviewBoard';
 import { PlayerRemarkModal } from './PlayerRemarkModal';
 import { PenaltyShootoutDesk } from './PenaltyShootoutDesk';
-import { RotateCcw, Undo2, Radio, CheckCircle, RefreshCw, ArrowLeft, FileEdit } from 'lucide-react';
+import { RotateCcw, Undo2, Radio, RefreshCw, ArrowLeft, FileEdit } from 'lucide-react';
 
 interface LiveMatchDeskProps {
   initialMatchId?: string;
@@ -28,454 +30,178 @@ export const LiveMatchDesk: React.FC<LiveMatchDeskProps> = ({
 }) => {
   const [matches, setMatches] = useState<MatchLiveSnapshot[]>([]);
   const [selectedMatchId, setSelectedMatchId] = useState<string>(initialMatchId || 'sztu-match-2026-001');
-  const [matchData, setMatchData] = useState<MatchLiveSnapshot | null>(null);
+  const [snapshot, setSnapshot] = useState<MatchLiveSnapshot | null>(null);
+  const [now, setNow] = useState(Date.now);
+  const matchData = snapshot?.id === selectedMatchId ? projectMatchClock(snapshot, now) : null;
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isUndoing, setIsUndoing] = useState<boolean>(false);
-  const [isResetting, setIsResetting] = useState<boolean>(false);
+  const [feedback, setFeedback] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const pending = useRef(false);
   const [inShootoutView, setInShootoutView] = useState<boolean>(false);
   const [mobileActiveSide, setMobileActiveSide] = useState<'home' | 'away'>('home');
 
-  // 弹窗状态
-  const [playerModalState, setPlayerModalState] = useState<{
-    isOpen: boolean;
-    actionType: LiveActionType | null;
-    side: 'home' | 'away';
-    goalType?: import('@shared/types').GoalType;
-  }>({
-    isOpen: false,
-    actionType: null,
-    side: 'home',
-    goalType: undefined,
-  });
+  const [playerAction, setPlayerAction] = useState<Pick<SubmitLiveActionDto,
+    'type' | 'side' | 'goalType' | 'minute' | 'secondFormatted' | 'expectedVersion'> | null>(null);
 
-  // 广播通道 BroadcastChannel
-  const broadcastRef = useRef<BroadcastChannel | null>(null);
+  const applySnapshot = useCallback((next: MatchLiveSnapshot) => {
+    setNow(Date.now());
+    setSnapshot(prev => prev?.id === next.id && prev.version > next.version ? prev : next);
+  }, []);
 
-  useEffect(() => {
+  const loadData = useCallback(async (id: string, signal?: AbortSignal) => {
+    setLoading(true);
+    setError(null);
     try {
-      broadcastRef.current = new BroadcastChannel('sztufa_live_bus');
-    } catch {
-      // ignore
-    }
-    return () => {
-      broadcastRef.current?.close();
-    };
-  }, []);
-
-  const broadcastUpdate = useCallback((snapshot: MatchLiveSnapshot) => {
-    if (broadcastRef.current) {
-      const msg: LiveBroadcastMessage = {
-        type: 'MATCH_LIVE_UPDATE',
-        matchId: snapshot.id,
-        snapshot,
-        timestamp: Date.now(),
-      };
-      broadcastRef.current.postMessage(msg);
-    }
-  }, []);
-
-  const latestMatchDataRef = useRef<MatchLiveSnapshot | null>(matchData);
-  useEffect(() => {
-    latestMatchDataRef.current = matchData;
-  });
-
-  // 安全合并服务端快照：若比赛走表中，保障走表时钟与控球秒数不被覆盖回退
-  const safeMergeSnapshot = useCallback((serverSnapshot: MatchLiveSnapshot) => {
-    setMatchData((prev: MatchLiveSnapshot | null) => {
-      if (!prev) return serverSnapshot;
-
-      if (prev.clock.isRunning && serverSnapshot.clock.isRunning) {
-        const safeSecond = Math.max(prev.clock.currentSecond, serverSnapshot.clock.currentSecond);
-        const min = Math.floor(safeSecond / 60);
-        const sec = safeSecond % 60;
-        const displayTime = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
-        const displayMinute = Math.max(1, Math.ceil(safeSecond / 60));
-
-        const homeSec = Math.max(
-          prev.stats.possession.homeSeconds || 0,
-          serverSnapshot.stats.possession.homeSeconds || 0,
-        );
-        const awaySec = Math.max(
-          prev.stats.possession.awaySeconds || 0,
-          serverSnapshot.stats.possession.awaySeconds || 0,
-        );
-        const total = homeSec + awaySec;
-        const homePct = total > 0 ? Math.round((homeSec / total) * 100) : 50;
-        const awayPct = total > 0 ? 100 - homePct : 50;
-
-        return {
-          ...serverSnapshot,
-          clock: {
-            ...serverSnapshot.clock,
-            currentSecond: safeSecond,
-            displayMinute,
-            displayTime,
-          },
-          stats: {
-            ...serverSnapshot.stats,
-            possession: {
-              home: homePct,
-              away: awayPct,
-              homeSeconds: homeSec,
-              awaySeconds: awaySec,
-            },
-          },
-        };
-      }
-
-      return serverSnapshot;
-    });
-  }, []);
-
-  // 赛况数据变更时（包含秒级走表），向 BroadcastChannel 广播最新快照
-  useEffect(() => {
-    if (matchData) {
-      broadcastUpdate(matchData);
-    }
-  }, [matchData, broadcastUpdate]);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 2500);
-  };
-
-  const loadData = async (matchId: string) => {
-    try {
-      setLoading(true);
-      const data = await matchLiveService.getLiveSnapshot(matchId);
-      setMatchData(data);
-      broadcastUpdate(data);
-    } catch (err: any) {
-      setError(err.message || '加载赛况失败');
+      const next = await matchLiveService.getLiveSnapshot(id, signal);
+      if (!signal?.aborted) applySnapshot(next);
+    } catch (err) {
+      if (!signal?.aborted) setError(err instanceof Error ? err.message : '加载赛况失败');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  };
+  }, [applySnapshot]);
 
   useEffect(() => {
-    matchLiveService
-      .getMatches()
-      .then((res) => {
-        setMatches(res);
-        if (res.length > 0 && !selectedMatchId) {
-          setSelectedMatchId(res[0].id);
-        }
-      })
-      .catch((err) => console.error(err));
+    matchLiveService.getMatches().then(setMatches).catch(console.error);
   }, []);
 
   useEffect(() => {
-    if (initialMatchId) {
-      setSelectedMatchId(initialMatchId);
-    }
+    if (initialMatchId) setSelectedMatchId(initialMatchId);
   }, [initialMatchId]);
 
   useEffect(() => {
-    if (selectedMatchId) {
-      loadData(selectedMatchId);
-    }
-  }, [selectedMatchId]);
+    const controller = new AbortController();
+    setPlayerAction(null);
+    setInShootoutView(false);
+    setFeedback('');
+    void loadData(selectedMatchId, controller.signal);
+    return () => controller.abort();
+  }, [loadData, selectedMatchId]);
 
-  // 本地时钟走字与控球秒数累计（每秒推进一次）
   useEffect(() => {
-    if (!matchData?.clock.isRunning) return;
-
-    const timer = setInterval(() => {
-      setMatchData((prev: MatchLiveSnapshot | null) => {
-        if (!prev || !prev.clock.isRunning) return prev;
-        const newSec = prev.clock.currentSecond + 1;
-        const min = Math.floor(newSec / 60);
-        const sec = newSec % 60;
-        const displayTime = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
-        const displayMinute = Math.max(1, Math.ceil(newSec / 60));
-
-        // 控球秒数递增（纯不可变状态计算，严防对象原地修改引发双倍累加）
-        const currentHomeSec = prev.stats?.possession?.homeSeconds || 0;
-        const currentAwaySec = prev.stats?.possession?.awaySeconds || 0;
-
-        const newHomeSec = prev.possessionSide === 'home' ? currentHomeSec + 1 : currentHomeSec;
-        const newAwaySec = prev.possessionSide === 'away' ? currentAwaySec + 1 : currentAwaySec;
-        const total = newHomeSec + newAwaySec;
-        const homePct = total > 0 ? Math.round((newHomeSec / total) * 100) : 50;
-        const awayPct = total > 0 ? 100 - homePct : 50;
-
-        return {
-          ...prev,
-          clock: {
-            ...prev.clock,
-            currentSecond: newSec,
-            displayMinute,
-            displayTime,
-          },
-          stats: {
-            ...prev.stats,
-            possession: {
-              home: homePct,
-              away: awayPct,
-              homeSeconds: newHomeSec,
-              awaySeconds: newAwaySec,
-            },
-          },
-        };
-      });
-    }, 1000);
-
+    if (!snapshot?.clock.isRunning) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [matchData?.clock.isRunning, matchData?.possessionSide]);
+  }, [snapshot?.clock.isRunning]);
 
-  // 定时每 10 秒将走表秒数推送到服务端持久化保存
-  useEffect(() => {
-    if (!matchData?.clock.isRunning) return;
-
-    const syncInterval = setInterval(() => {
-      const cur = latestMatchDataRef.current;
-      if (cur && cur.clock.isRunning) {
-        matchLiveService
-          .updateClock(cur.id, {
-            period: cur.clock.period,
-            currentSecond: cur.clock.currentSecond,
-            displayTime: cur.clock.displayTime,
-          })
-          .catch((err) => console.error('[LiveDesk] 定时时钟同步轻度异常:', err));
-      }
-    }, 10000);
-
-    return () => clearInterval(syncInterval);
-  }, [matchData?.id, matchData?.clock.isRunning]);
-
-  // 控制时钟：开始/继续/恢复走时
-  const handleStartClock = async () => {
-    if (!matchData) return;
-    const isResuming = matchData.clock.period === 'PAUSED';
-    let targetPeriod = matchData.clock.period;
-    if (targetPeriod === 'NOT_STARTED') {
-      targetPeriod = 'FIRST_HALF';
-    } else if (targetPeriod === 'PAUSED') {
-      targetPeriod =
-        matchData.clock.previousPeriod ||
-        (matchData.clock.halfTimeMinute ? 'SECOND_HALF' : 'FIRST_HALF');
-    }
-
-    const updated = await matchLiveService.updateClock(matchData.id, {
-      period: targetPeriod,
-      currentSecond: matchData.clock.currentSecond,
-      displayTime: matchData.clock.displayTime,
-    });
-    setMatchData(updated);
-    broadcastUpdate(updated);
-    showToast(isResuming ? '比赛走时已恢复 ▶' : '比赛走时已启动 ▶');
-  };
-
-  // 暂停
-  const handlePauseClock = async () => {
-    if (!matchData) return;
-    const updated = await matchLiveService.updateClock(matchData.id, {
-      period: 'PAUSED',
-      currentSecond: matchData.clock.currentSecond,
-      displayTime: matchData.clock.displayTime,
-    });
-    setMatchData(updated);
-    broadcastUpdate(updated);
-    showToast('比赛走时已暂停 ⏸');
-  };
-
-  // 中场休息直接进入（无需弹窗，使用创建比赛时设定的半场时长）
-  const handleDirectHalfTime = async () => {
-    if (!matchData) return;
-    const targetHalfMinute = matchData.halfDuration || 45;
-    const updated = await matchLiveService.updateClock(matchData.id, {
-      period: 'HALF_TIME',
-      confirmedMinute: targetHalfMinute,
-      currentSecond: matchData.clock.currentSecond,
-      displayTime: matchData.clock.displayTime,
-    });
-    setMatchData(updated);
-    broadcastUpdate(updated);
-    showToast(`已直接进入中场休息 (HT ${targetHalfMinute}')`);
-  };
-
-  // 开始下半场
-  const handleStartSecondHalf = async () => {
-    if (!matchData) return;
-    const updated = await matchLiveService.updateClock(matchData.id, {
-      period: 'SECOND_HALF',
-    });
-    setMatchData(updated);
-    broadcastUpdate(updated);
-    showToast(`下半场比赛正式开球 ▶ (第 ${updated.clock.secondHalfStartMinute}')`);
-  };
-
-  // 比赛结束 (常规时间完赛，未进行点球大战)
-  const handleFinishMatch = async () => {
-    if (!matchData) return;
-    if (window.confirm('确定要全场结束本场比赛吗？比赛结果将锁定为最终比分。')) {
-      const updated = await matchLiveService.updateClock(matchData.id, {
-        period: 'FINISHED',
-        currentSecond: matchData.clock.currentSecond,
-        displayTime: matchData.clock.displayTime,
-        penaltyShootout: null, // 常规比赛结束，显式重置/清除点球大战数据
-      });
-      setMatchData(updated);
-      broadcastUpdate(updated);
-      showToast('全场比赛已结束 (FT) 🏁');
-    }
-  };
-
-  // 切换控球方
-  const handleSwitchPossession = async (side: PossessionSide) => {
-    if (!matchData) return;
-    const currentSec = matchData.clock.currentSecond;
-    const displayTime = matchData.clock.displayTime;
-    const displayMinute = matchData.clock.displayMinute;
-
-    const updated = await matchLiveService.switchPossession(matchData.id, {
-      side,
-      homeSeconds: matchData.stats.possession.homeSeconds,
-      awaySeconds: matchData.stats.possession.awaySeconds,
-      currentSecond: currentSec,
-      displayTime,
-      displayMinute,
-    });
-    safeMergeSnapshot(updated);
-    const sideName =
-      side === 'home'
-        ? matchData.homeTeam.shortName || matchData.homeTeam.name
-        : side === 'away'
-        ? matchData.awayTeam.shortName || matchData.awayTeam.name
-        : '中立争夺';
-    showToast(`控球方已切换至: ${sideName}`);
-  };
-
-  // 快捷打点纯统计动作 (射门/角球/任意球/犯规)
-  const handleQuickRecordAction = async (
-    actionType: LiveActionType,
-    side: 'home' | 'away',
-    isShotOnTarget?: boolean,
+  const submit = useCallback(async (
+    id: string,
+    save: () => Promise<MatchLiveSnapshot>,
+    success: string | ((next: MatchLiveSnapshot) => string),
   ) => {
-    if (!matchData) return;
-    const updated = await matchLiveService.recordAction(matchData.id, {
-      type: actionType,
-      side,
-      minute: matchData.clock.displayMinute,
-      secondFormatted: matchData.clock.displayTime,
-      isShotOnTarget,
-    });
-    safeMergeSnapshot(updated);
-    const sideName =
-      side === 'home'
-        ? matchData.homeTeam.shortName || matchData.homeTeam.name
-        : matchData.awayTeam.shortName || matchData.awayTeam.name;
-    showToast(`${sideName} ${actionType} 数据已累加 (+1)`);
-  };
-
-  // 录入带球员信息的重大事件 (进球/点球/乌龙球/红黄牌/换人)
-  const handleConfirmPlayerModal = async (data: {
-    playerName?: string;
-    playerNumber?: number;
-    assistPlayerName?: string;
-    subInPlayerName?: string;
-    subOutPlayerName?: string;
-    reason?: string;
-    goalType?: import('@shared/types').GoalType;
-    penaltyScored?: boolean;
-  }) => {
-    if (!matchData || !playerModalState.actionType) return;
+    if (pending.current) return false;
+    pending.current = true;
+    setSubmitting(true);
+    setFeedback('正在提交…');
     try {
-      const updated = await matchLiveService.recordAction(matchData.id, {
-        type: playerModalState.actionType,
-        side: playerModalState.side,
-        goalType: data.goalType || playerModalState.goalType,
-        minute: matchData.clock.displayMinute,
-        secondFormatted: matchData.clock.displayTime,
-        playerName: data.playerName,
-        playerNumber: data.playerNumber,
-        assistPlayerName: data.assistPlayerName,
-        subInPlayerName: data.subInPlayerName,
-        subOutPlayerName: data.subOutPlayerName,
-        reason: data.reason,
-        penaltyScored: data.penaltyScored,
-      });
-      setPlayerModalState({ isOpen: false, actionType: null, side: 'home', goalType: undefined });
-      safeMergeSnapshot(updated);
-      showToast(`重大事件已记录并广播同步 ⚽/🎯/🥅/🟨/🟥/🔄`);
-    } catch (err: any) {
-      console.error('事件录入失败:', err);
-      alert(`事件录入失败: ${err.message || '网络或接口异常'}`);
+      const next = await save();
+      applySnapshot(next);
+      setFeedback(typeof success === 'string' ? success : success(next));
+      return true;
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : '网络异常';
+      setFeedback(`提交未确认：${reason}。请核对最新记录后再操作。`);
+      try {
+        applySnapshot(await matchLiveService.getLiveSnapshot(id));
+      } catch {
+        setFeedback(`提交未确认：${reason}。请重新加载比赛后核对记录。`);
+      }
+      return false;
+    } finally {
+      pending.current = false;
+      setSubmitting(false);
+    }
+  }, [applySnapshot]);
+
+  const changeClock = (change: ChangeClockPeriodDto, success: string) => {
+    if (!matchData) return;
+    const { id, version } = matchData;
+    void submit(id, () => matchLiveService.updateClock(id, { ...change, expectedVersion: version }), success);
+  };
+
+  const handleStartClock = () => {
+    if (!matchData) return;
+    changeClock({ period: playingHalf(matchData.clock) ?? 'FIRST_HALF' }, '比赛走时已启动');
+  };
+
+  const handleFinishMatch = () => {
+    if (window.confirm('确定结束比赛并锁定比分？')) {
+      changeClock({ period: 'FINISHED', penaltyShootout: null }, '全场比赛已结束');
     }
   };
 
-  // 手动微调统计数值
-  const handleUpdateStatsDelta = async (
-    statKey: 'shots' | 'shotsOnTarget' | 'cornerKicks' | 'freeKicks' | 'fouls' | 'yellowCards' | 'redCards',
-    side: 'home' | 'away',
-    delta: number,
-  ) => {
+  const handleAnnounceStoppage = (minutes: number) => {
     if (!matchData) return;
-    const updated = await matchLiveService.updateStatsDelta(matchData.id, {
-      statKey,
-      side,
-      delta,
-    });
-    safeMergeSnapshot(updated);
+    const half = playingHalf(matchData.clock);
+    if (!half) return;
+    void submit(matchData.id, () => matchLiveService.announceStoppage(matchData.id, half, minutes), '补时已保存');
   };
 
-  // 删除事件
-  const handleDeleteEvent = async (eventId: string) => {
+  const handleSwitchPossession = (side: PossessionSide) => {
     if (!matchData) return;
-    if (window.confirm('确定删除该事件？关联的比分与统计将自动反向扣减回退。')) {
-      const updated = await matchLiveService.deleteTimelineEvent(matchData.id, eventId);
-      safeMergeSnapshot(updated);
-      showToast('事件已删除，比分与统计已同步扣减');
-    }
+    void submit(matchData.id, () => matchLiveService.switchPossession(matchData.id, { side }), '控球方已更新');
   };
 
-  // 撤销上一步操作
-  const handleUndo = useCallback(async () => {
+  const handleQuickRecordAction = (type: LiveActionType, side: 'home' | 'away', isShotOnTarget?: boolean) => {
     if (!matchData) return;
-    setIsUndoing(true);
-    setTimeout(() => setIsUndoing(false), 1000);
-    const updated = await matchLiveService.undo(matchData.id);
-    setMatchData(updated);
-    broadcastUpdate(updated);
-    showToast('已撤销上一次操作 (Undo) ↩️');
-  }, [matchData, broadcastUpdate]);
+    void submit(matchData.id, () => matchLiveService.recordAction(matchData.id, {
+      type, side, isShotOnTarget, expectedVersion: matchData.version,
+    }), '技术统计已保存');
+  };
 
-  // 键盘快捷键监听：Ctrl+Z 撤销
+  const handleOpenPlayerModal = (type: LiveActionType, side: 'home' | 'away', goalType?: SubmitLiveActionDto['goalType']) => {
+    if (!matchData || pending.current) return;
+    const { clock } = projectMatchClock(matchData);
+    setPlayerAction({ type, side, goalType, minute: clock.displayMinute, secondFormatted: clock.displayTime, expectedVersion: matchData.version });
+    setFeedback('');
+  };
+
+  const handleConfirmPlayerModal = async (details: Omit<SubmitLiveActionDto, 'type' | 'side'>) => {
+    if (!matchData || !playerAction || pending.current) return;
+    const { id } = matchData;
+    setPlayerAction(null);
+    await submit(id, () => matchLiveService.recordAction(id, {
+      ...playerAction, ...details, goalType: details.goalType ?? playerAction.goalType,
+    }), '事件已保存');
+  };
+
+  const handleUpdateStatsDelta = (statKey: Parameters<typeof matchLiveService.updateStatsDelta>[1]['statKey'],
+    side: 'home' | 'away', delta: number) => {
+    if (!matchData) return;
+    void submit(matchData.id, () => matchLiveService.updateStatsDelta(matchData.id, { statKey, side, delta }), '技术统计已保存');
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    if (!matchData || pending.current || !window.confirm('确定删除该事件并回退关联比分与统计？')) return;
+    void submit(matchData.id, () => matchLiveService.deleteTimelineEvent(matchData.id, eventId), '事件已删除');
+  };
+
+  const handleUndo = useCallback(() => {
+    if (!snapshot || snapshot.id !== selectedMatchId) return;
+    const { id, version } = snapshot;
+    void submit(id, () => matchLiveService.undo(id), next => next.version > version ? '已撤销上一次操作' : '没有可撤销的操作');
+  }, [snapshot, selectedMatchId, submit]);
+
   useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-        if (!playerModalState.isOpen) {
-          e.preventDefault();
-          handleUndo();
-        }
+    const onKeyDown = (e: KeyboardEvent) => {
+      const element = e.target as HTMLElement | null;
+      if (playerAction || inShootoutView || element?.closest('input, textarea, select, [contenteditable]')) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.repeat) {
+        e.preventDefault();
+        handleUndo();
       }
     };
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [handleUndo, playerModalState.isOpen]);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleUndo, inShootoutView, playerAction]);
 
-  // 重置比赛（彻底清空所有实时数据，恢复为比赛前状态）
-  const handleReset = async () => {
-    if (!matchData) return;
-    if (
-      window.confirm(
-        '确定要完全重置本场比赛吗？\n所有比分、走表、开球时间、事件流水与技术统计将被彻底清除，恢复为赛前就绪状态（保留球队信息与参赛名单）。',
-      )
-    ) {
-      setIsResetting(true);
-      setTimeout(() => setIsResetting(false), 1000);
-      const updated = await matchLiveService.reset(matchData.id);
-      setMatchData(updated);
-      broadcastUpdate(updated);
-      showToast('比赛已彻底重置为开赛前状态 🔄');
-    }
+  const handleReset = () => {
+    if (!matchData || pending.current || !window.confirm('确定清空比分、时钟和事件，重置本场比赛？')) return;
+    void submit(matchData.id, () => matchLiveService.reset(matchData.id), '比赛已重置');
   };
 
-  if (loading && !matchData) {
+  if (!matchData && (loading || !error)) {
     return <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8' }}>正在加载现场记录操控台...</div>;
   }
 
@@ -495,36 +221,24 @@ export const LiveMatchDesk: React.FC<LiveMatchDeskProps> = ({
   if (inShootoutView && matchData) {
     return (
       <div className="live-desk-container" style={{ background: '#f8fafc', minHeight: '100vh' }}>
-        {toastMessage && (
-          <div className="desk-toast-pill">
-            <CheckCircle size={16} color="#34d399" />
-            <span>{toastMessage}</span>
-          </div>
-        )}
         <PenaltyShootoutDesk
           matchData={matchData}
           onBackToDesk={() => setInShootoutView(false)}
           onFinishMatchSuccess={(updated) => {
-            setMatchData(updated);
+            applySnapshot(updated);
             setInShootoutView(false);
-            showToast('点球大战完赛，结果已锁定 🏁');
+            setFeedback('点球大战完赛，结果已锁定');
           }}
-          broadcastUpdate={broadcastUpdate}
+          onSnapshot={applySnapshot}
         />
       </div>
     );
   }
 
+  const editingDisabled = submitting || matchData.clock.period === 'FINISHED';
+
   return (
     <div className="live-desk-container">
-      {/* 操作反馈轻提示 Toast */}
-      {toastMessage && (
-        <div className="desk-toast-pill">
-          <CheckCircle size={16} color="#34d399" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
       {/* 顶部控制栏 */}
       <div className="desk-header">
         <div className="title-badge">
@@ -542,6 +256,7 @@ export const LiveMatchDesk: React.FC<LiveMatchDeskProps> = ({
           <h1>SZTUFA 现场记录操控台 (Live Desk)</h1>
           <select
             value={selectedMatchId}
+            disabled={submitting}
             onChange={(e) => setSelectedMatchId(e.target.value)}
             className="desk-header-select"
           >
@@ -570,14 +285,16 @@ export const LiveMatchDesk: React.FC<LiveMatchDeskProps> = ({
             </button>
           )}
           <button
-            className={`action-btn secondary ${isUndoing ? 'btn-clicked' : ''}`}
+            className="action-btn secondary"
+            disabled={submitting}
             onClick={handleUndo}
             title="撤销上一次操作 (支持快捷键 Ctrl+Z)"
           >
             <Undo2 size={14} /> 撤销 (Ctrl+Z)
           </button>
           <button
-            className={`action-btn secondary ${isResetting ? 'btn-clicked' : ''}`}
+            className="action-btn secondary"
+            disabled={submitting}
             onClick={handleReset}
             title="完全重置本场比赛数据为开赛前状态"
           >
@@ -585,6 +302,10 @@ export const LiveMatchDesk: React.FC<LiveMatchDeskProps> = ({
           </button>
         </div>
       </div>
+
+      <p className="desk-operation-status" role="status" aria-live="polite">
+        {feedback || '就绪'}
+      </p>
 
       {/* 大比分与中央时钟 */}
       <div className="scoreboard-clock-banner">
@@ -598,12 +319,15 @@ export const LiveMatchDesk: React.FC<LiveMatchDeskProps> = ({
 
         {/* 计时器与控制中心 */}
         <MatchClockPanel
-          clock={matchData.clock}
-          kickoffTime={matchData.kickoffTime}
+          key={matchData.id + ':' + playingHalf(matchData.clock)}
+          match={matchData}
+          busy={submitting}
           onStart={handleStartClock}
-          onPause={handlePauseClock}
-          onOpenHalfTimeModal={handleDirectHalfTime}
-          onStartSecondHalf={handleStartSecondHalf}
+          onPause={() => changeClock({ period: 'PAUSED' }, '比赛已暂停')}
+          onHalfTime={() => changeClock({ period: 'HALF_TIME' }, '已进入中场休息')}
+          onStartSecondHalf={() => changeClock({ period: 'SECOND_HALF' }, '下半场已开球')}
+          onRegularTimeEnd={() => changeClock({ period: 'PAUSED', regularTimeEnded: true }, '常规时间已结束')}
+          onAnnounceStoppage={handleAnnounceStoppage}
           onFinishMatch={handleFinishMatch}
           onEnterPenaltyShootout={() => setInShootoutView(true)}
         />
@@ -651,11 +375,10 @@ export const LiveMatchDesk: React.FC<LiveMatchDeskProps> = ({
           <TeamActionColumn
             side="home"
             team={matchData.homeTeam}
+            busy={editingDisabled}
             isPossessing={matchData.possessionSide === 'home'}
             onSwitchPossession={handleSwitchPossession}
-            onOpenPlayerModal={(type, side, goalType) =>
-              setPlayerModalState({ isOpen: true, actionType: type, side, goalType })
-            }
+            onOpenPlayerModal={handleOpenPlayerModal}
             onQuickRecordAction={handleQuickRecordAction}
           />
         </div>
@@ -664,11 +387,10 @@ export const LiveMatchDesk: React.FC<LiveMatchDeskProps> = ({
           <TeamActionColumn
             side="away"
             team={matchData.awayTeam}
+            busy={editingDisabled}
             isPossessing={matchData.possessionSide === 'away'}
             onSwitchPossession={handleSwitchPossession}
-            onOpenPlayerModal={(type, side, goalType) =>
-              setPlayerModalState({ isOpen: true, actionType: type, side, goalType })
-            }
+            onOpenPlayerModal={handleOpenPlayerModal}
             onQuickRecordAction={handleQuickRecordAction}
           />
         </div>
@@ -680,6 +402,7 @@ export const LiveMatchDesk: React.FC<LiveMatchDeskProps> = ({
           events={matchData.timeline}
           homeTeamName={matchData.homeTeam.shortName || matchData.homeTeam.name}
           awayTeamName={matchData.awayTeam.shortName || matchData.awayTeam.name}
+          busy={editingDisabled}
           onDeleteEvent={handleDeleteEvent}
           penaltyShootout={matchData.penaltyShootout}
         />
@@ -688,6 +411,7 @@ export const LiveMatchDesk: React.FC<LiveMatchDeskProps> = ({
           stats={matchData.stats}
           homeTeamName={matchData.homeTeam.shortName || matchData.homeTeam.name}
           awayTeamName={matchData.awayTeam.shortName || matchData.awayTeam.name}
+          busy={editingDisabled}
           onUpdateStatsDelta={handleUpdateStatsDelta}
         />
       </div>
@@ -695,22 +419,23 @@ export const LiveMatchDesk: React.FC<LiveMatchDeskProps> = ({
 
       {/* 进球/红黄牌/换人录入弹窗 */}
       <PlayerRemarkModal
-        isOpen={playerModalState.isOpen}
-        actionType={playerModalState.actionType}
-        side={playerModalState.side}
-        goalType={playerModalState.goalType}
+        isOpen={Boolean(playerAction)}
+        actionType={playerAction?.type ?? null}
+        side={playerAction?.side ?? 'home'}
+        goalType={playerAction?.goalType}
+        eventTime={playerAction?.secondFormatted}
         teamName={
-          playerModalState.side === 'home'
+          playerAction?.side !== 'away'
             ? matchData.homeTeam.shortName || matchData.homeTeam.name
             : matchData.awayTeam.shortName || matchData.awayTeam.name
         }
         teamRoster={
-          playerModalState.side === 'home'
+          playerAction?.side !== 'away'
             ? { starters: matchData.homeTeam.starters, substitutes: matchData.homeTeam.substitutes }
             : { starters: matchData.awayTeam.starters, substitutes: matchData.awayTeam.substitutes }
         }
         onConfirm={handleConfirmPlayerModal}
-        onClose={() => setPlayerModalState({ isOpen: false, actionType: null, side: 'home', goalType: undefined })}
+        onClose={() => setPlayerAction(null)}
       />
     </div>
   );

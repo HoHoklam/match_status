@@ -6,6 +6,7 @@ interface TimelineEventStreamProps {
   events: MatchTimelineEvent[];
   homeTeamName: string;
   awayTeamName: string;
+  busy: boolean;
   onDeleteEvent: (eventId: string) => void;
   penaltyShootout?: PenaltyShootoutState;
 }
@@ -14,6 +15,7 @@ export const TimelineEventStream: React.FC<TimelineEventStreamProps> = ({
   events,
   homeTeamName,
   awayTeamName,
+  busy,
   onDeleteEvent,
   penaltyShootout,
 }) => {
@@ -237,6 +239,7 @@ export const TimelineEventStream: React.FC<TimelineEventStreamProps> = ({
                 {/* 删除按钮 */}
                 <button
                   type="button"
+                  disabled={busy}
                   onClick={() => onDeleteEvent(evt.id)}
                   title="删除此事件 (将自动扣减对应比分与统计)"
                   style={{

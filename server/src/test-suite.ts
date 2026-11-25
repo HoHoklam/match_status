@@ -104,7 +104,7 @@ async function runTestSuite() {
     assert('中场休息确认后 period 为 HALF_TIME', htMatch.clock.period === 'HALF_TIME');
     assert('时钟停止走字 (isRunning = false)', htMatch.clock.isRunning === false);
     assert('中场确认分钟为 35', htMatch.clock.halfTimeMinute === 35);
-    assert('中场时钟设定 secondHalfStartMinute 为 35', htMatch.clock.secondHalfStartMinute === 35);
+    assert('下半场按赛制设定的半场时长起表', htMatch.clock.secondHalfStartMinute === (htMatch.halfDuration || 45));
     assert('时间线插入中场休息贯穿节点 (HT 中场休息)', htMatch.timeline.some(t => t.periodLabel === 'HT 中场休息' && t.period === 'HALF_TIME'));
 
     // 2.5 开始下半场 (SECOND_HALF)

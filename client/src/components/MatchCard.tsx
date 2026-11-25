@@ -1,3 +1,4 @@
+import { announcedStoppage, formatMatchMinute, matchStatusLabel } from '@shared/matchClock';
 import React from 'react';
 import { MatchLiveSnapshot } from '@shared/types';
 import { resolveColorHex, isLightColor } from '../utils/colorHelper';
@@ -30,6 +31,9 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onOpenDetail }) => 
         hasAttemptedKicks)
   );
 
+  const stoppage = announcedStoppage(match);
+  const minute = formatMatchMinute(match, match.clock.displayMinute);
+  const stoppageLabel = stoppage === undefined ? '' : ` · 至少补时 ${stoppage} 分钟`;
   const getStatusBadge = () => {
     if (match.clock.period === 'NOT_STARTED') {
       return (
@@ -94,7 +98,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onOpenDetail }) => 
             gap: '4px',
           }}
         >
-          <span>⏸</span> 暂停中 {match.clock.displayMinute}'
+          {matchStatusLabel(match)}{!match.clock.regularTimeEnded && ` ${minute}`}{stoppageLabel}
         </span>
       );
     }
@@ -114,7 +118,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({ match, onOpenDetail }) => 
           fontWeight: 700,
         }}
       >
-        <Radio size={12} className="live-dot" /> LIVE {match.clock.displayMinute}'
+        <Radio size={12} className="live-dot" /> LIVE {minute}{stoppageLabel}
       </span>
     );
   };

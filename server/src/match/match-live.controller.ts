@@ -11,7 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { MatchLiveService } from './match-live.service';
 import { SubmitLiveActionDto } from './dto/live-action.dto';
-import { ChangeClockPeriodDto, SwitchPossessionDto } from './dto/match-period.dto';
+import { AnnounceStoppageDto, ChangeClockPeriodDto, SwitchPossessionDto } from './dto/match-period.dto';
 import { UpdateStatsDeltaDto } from './dto/update-stats.dto';
 import { MatchLiveSnapshot } from '@shared/types';
 
@@ -39,6 +39,11 @@ export class MatchLiveController {
     @Body() dto: ChangeClockPeriodDto,
   ): MatchLiveSnapshot {
     return this.liveService.updateClock(id, dto);
+  }
+
+  @Patch(':id/live/stoppage')
+  public announceStoppage(@Param('id') id: string, @Body() dto: AnnounceStoppageDto): MatchLiveSnapshot {
+    return this.liveService.announceStoppage(id, dto);
   }
 
   @Post(':id/live/possession')

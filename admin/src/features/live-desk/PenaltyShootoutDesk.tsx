@@ -13,14 +13,14 @@ interface PenaltyShootoutDeskProps {
   matchData: MatchLiveSnapshot;
   onBackToDesk: () => void;
   onFinishMatchSuccess: (updatedMatch: MatchLiveSnapshot) => void;
-  broadcastUpdate: (snapshot: MatchLiveSnapshot) => void;
+  onSnapshot: (snapshot: MatchLiveSnapshot) => void;
 }
 
 export const PenaltyShootoutDesk: React.FC<PenaltyShootoutDeskProps> = ({
   matchData,
   onBackToDesk,
   onFinishMatchSuccess,
-  broadcastUpdate,
+  onSnapshot,
 }) => {
   const [roundsCount, setRoundsCount] = useState<number>(() => {
     return matchData.penaltyShootout?.roundsCount || 5;
@@ -166,7 +166,7 @@ export const PenaltyShootoutDesk: React.FC<PenaltyShootoutDeskProps> = ({
     }
   }, [homeScore, awayScore]);
 
-  // 同步点球快照并广播
+  // 保存点球快照
   const syncShootoutState = async (
     customHomeKicks = calculatedHomeKicks,
     customAwayKicks = calculatedAwayKicks,
@@ -177,8 +177,8 @@ export const PenaltyShootoutDesk: React.FC<PenaltyShootoutDeskProps> = ({
     try {
       const state: PenaltyShootoutState = {
         enabled: true,
-        homeScore,
-        awayScore,
+        homeScore: customHomeKicks.filter(kick => kick.playerName && kick.scored && (kick.isAttempted || kick.status)).length,
+        awayScore: customAwayKicks.filter(kick => kick.playerName && kick.scored && (kick.isAttempted || kick.status)).length,
         winnerSide: customWinner,
         roundsCount: customRounds,
         homeKicks: customHomeKicks,
@@ -188,7 +188,7 @@ export const PenaltyShootoutDesk: React.FC<PenaltyShootoutDeskProps> = ({
       };
 
       const updated = await matchLiveService.updatePenaltyShootout(matchData.id, state);
-      broadcastUpdate(updated);
+      onSnapshot(updated);
     } catch (err) {
       console.error('同步点球状态失败:', err);
     }
@@ -374,7 +374,7 @@ export const PenaltyShootoutDesk: React.FC<PenaltyShootoutDeskProps> = ({
       };
       try {
         const updated = await matchLiveService.updatePenaltyShootout(matchData.id, emptyState);
-        broadcastUpdate(updated);
+        onSnapshot(updated);
       } catch (err) {
         console.error('重置点球大战失败:', err);
       }
@@ -544,6 +544,7 @@ export const PenaltyShootoutDesk: React.FC<PenaltyShootoutDeskProps> = ({
         homeKicks: calculatedHomeKicks.filter((k) => k.playerName && (k.isAttempted || k.status)),
         awayKicks: calculatedAwayKicks.filter((k) => k.playerName && (k.isAttempted || k.status)),
         isCompleted: true,
+        firstKickSide,
       };
 
       const updated = await matchLiveService.updateClock(matchData.id, {
@@ -553,7 +554,6 @@ export const PenaltyShootoutDesk: React.FC<PenaltyShootoutDeskProps> = ({
         penaltyShootout: finalShootout,
       });
 
-      broadcastUpdate(updated);
       onFinishMatchSuccess(updated);
     } catch (err: any) {
       alert(`完赛失败: ${err.message || '未知错误'}`);
@@ -1283,7 +1283,7 @@ export const PenaltyShootoutDesk: React.FC<PenaltyShootoutDeskProps> = ({
               gap: '8px',
             }}
           >
-            <Square size={18} /> 全场比赛结束（锁定终局记录并广播）
+            <Square size={18} /> 全场比赛结束（锁定终局记录）
           </button>
         </div>
       </div>
