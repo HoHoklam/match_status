@@ -11,6 +11,7 @@ export async function request<T>(path: string, options?: RequestInit): Promise<T
       ...options?.headers,
     },
     ...options,
+    signal: options?.signal ?? AbortSignal.timeout(8000),
   });
 
   if (!response.ok) {

@@ -7,6 +7,7 @@ interface PlayerRemarkModalProps {
   side: 'home' | 'away';
   goalType?: GoalType;
   teamName: string;
+  eventTime?: string;
   teamRoster?: {
     starters?: PlayerInfo[];
     substitutes?: PlayerInfo[];
@@ -30,6 +31,7 @@ export const PlayerRemarkModal: React.FC<PlayerRemarkModalProps> = ({
   side,
   goalType,
   teamName,
+  eventTime,
   teamRoster,
   onConfirm,
   onClose,
@@ -133,6 +135,7 @@ export const PlayerRemarkModal: React.FC<PlayerRemarkModalProps> = ({
           </span>
         </div>
 
+        {eventTime && <p>事件时刻 {eventTime}</p>}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {actionType === 'SUBSTITUTION' ? (
             <>
@@ -550,7 +553,7 @@ export const PlayerRemarkModal: React.FC<PlayerRemarkModalProps> = ({
               取消 (Esc)
             </button>
             <button type="submit" className="action-btn primary">
-              确认录入并广播
+              确认录入
             </button>
           </div>
         </form>

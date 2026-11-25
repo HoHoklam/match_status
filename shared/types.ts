@@ -12,6 +12,8 @@ export type MatchPeriod =
   | 'FINISHED'     // 比赛结束
   | 'PAUSED';      // 暂停走时
 
+export type PlayingHalf = 'FIRST_HALF' | 'SECOND_HALF';
+
 /** 控球方定义 */
 export type PossessionSide = 'home' | 'away' | 'neutral';
 
@@ -25,6 +27,9 @@ export interface MatchClockState {
   halfTimeMinute: number | null; // 上半场最终结算确认分钟（例如 35 或 45）
   secondHalfStartMinute: number; // 下半场自适应起始分钟（若上半场确认35'则为36'；若45'则为46'）
   lastStartedAt: number | null;  // 最近一次启动走时的毫秒时间戳（用于服务端/客户端对齐走时）
+  anchorAt?: number;
+  announcedStoppage?: Partial<Record<PlayingHalf, number>>;
+  regularTimeEnded?: boolean;
   previousPeriod?: MatchPeriod | null; // 暂停前的半场状态 (FIRST_HALF 或 SECOND_HALF)
 }
 
@@ -189,6 +194,7 @@ export type LiveActionType =
   | 'FOUL';
 
 export interface SubmitLiveActionDto {
+  expectedVersion?: number;
   type: LiveActionType;
   side: 'home' | 'away';
   goalType?: GoalType;          // 进球细分类型 (regular / penalty / penalty_missed / own_goal)
@@ -208,6 +214,8 @@ export interface SubmitLiveActionDto {
 export interface ChangeClockPeriodDto {
   period: MatchPeriod;
   confirmedMinute?: number;      // 中场确认或手动调整时的分钟
+  expectedVersion?: number;
+  regularTimeEnded?: boolean;
   resetSecond?: number;          // 强制重置秒数
   currentSecond?: number;        // 当前走时秒数
   displayTime?: string;          // 盘面显示格式化时间 (如 "36:20")

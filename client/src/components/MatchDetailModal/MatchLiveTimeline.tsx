@@ -59,7 +59,6 @@ export const MatchLiveTimeline: React.FC<MatchLiveTimelineProps> = ({
   const hasReachedHalfTime = Boolean(
     clock?.period === 'HALF_TIME' ||
       clock?.period === 'SECOND_HALF' ||
-      clock?.period === 'FINISHED' ||
       (clock?.period === 'PAUSED' &&
         (clock?.previousPeriod === 'SECOND_HALF' || Boolean(clock?.halfTimeMinute))) ||
       Boolean(clock?.halfTimeMinute) ||
@@ -355,7 +354,7 @@ export const MatchLiveTimeline: React.FC<MatchLiveTimelineProps> = ({
       {/* 中场 HT 节点：当且仅当达到设定中场时间后展示 */}
       {hasReachedHalfTime && (
         <div className="timeline-ht-node">
-          <div className="timeline-ht-badge">HT {htMinute}' 中场休息</div>
+          <div className="timeline-ht-badge">HT {htNode?.displayMinuteFormatted ?? `${htMinute}'`} 中场休息</div>
         </div>
       )}
 

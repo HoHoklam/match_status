@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsNumber, IsOptional } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, Max, Min } from 'class-validator';
 import { MatchPeriod, PossessionSide } from '@shared/types';
 
 export class ChangeClockPeriodDto {
@@ -10,19 +10,31 @@ export class ChangeClockPeriodDto {
   @IsIn(['NOT_STARTED', 'FIRST_HALF', 'HALF_TIME', 'SECOND_HALF', 'FINISHED', 'PAUSED'])
   period: MatchPeriod;
 
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  expectedVersion?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  regularTimeEnded?: boolean;
+
   @ApiPropertyOptional({ description: '中场确认或微调时的分钟数' })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(0)
   confirmedMinute?: number;
 
   @ApiPropertyOptional({ description: '重置时的指定秒数' })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(0)
   resetSecond?: number;
 
   @ApiPropertyOptional({ description: '当前走字秒数' })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(0)
   currentSecond?: number;
 
   @ApiPropertyOptional({ description: '盘面格式化显示时间 (如 36:20)' })
@@ -85,4 +97,14 @@ export class SwitchPossessionDto {
   @IsOptional()
   @IsNumber()
   displayMinute?: number;
+}
+
+export class AnnounceStoppageDto {
+  @IsIn(['FIRST_HALF', 'SECOND_HALF'])
+  half: import('@shared/types').PlayingHalf;
+
+  @IsInt()
+  @Min(0)
+  @Max(99)
+  minutes: number;
 }

@@ -6,6 +6,7 @@ interface LiveStatsPreviewBoardProps {
   stats: MatchStatistics;
   homeTeamName: string;
   awayTeamName: string;
+  busy: boolean;
   onUpdateStatsDelta: (
     statKey: 'shots' | 'shotsOnTarget' | 'cornerKicks' | 'freeKicks' | 'fouls' | 'yellowCards' | 'redCards',
     side: 'home' | 'away',
@@ -17,6 +18,7 @@ export const LiveStatsPreviewBoard: React.FC<LiveStatsPreviewBoardProps> = ({
   stats,
   homeTeamName,
   awayTeamName,
+  busy,
   onUpdateStatsDelta,
 }) => {
   const statRows: Array<{
@@ -114,6 +116,7 @@ export const LiveStatsPreviewBoard: React.FC<LiveStatsPreviewBoardProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <button
                   type="button"
+                  disabled={busy}
                   onClick={() => onUpdateStatsDelta(key, 'home', -1)}
                   title="扣减 -1"
                   style={{
@@ -131,6 +134,7 @@ export const LiveStatsPreviewBoard: React.FC<LiveStatsPreviewBoardProps> = ({
                 </button>
                 <button
                   type="button"
+                  disabled={busy}
                   onClick={() => onUpdateStatsDelta(key, 'home', 1)}
                   title="增加 +1"
                   style={{
@@ -237,6 +241,7 @@ export const LiveStatsPreviewBoard: React.FC<LiveStatsPreviewBoardProps> = ({
                 </span>
                 <button
                   type="button"
+                  disabled={busy}
                   onClick={() => onUpdateStatsDelta(key, 'away', -1)}
                   title="扣减 -1"
                   style={{
@@ -254,6 +259,7 @@ export const LiveStatsPreviewBoard: React.FC<LiveStatsPreviewBoardProps> = ({
                 </button>
                 <button
                   type="button"
+                  disabled={busy}
                   onClick={() => onUpdateStatsDelta(key, 'away', 1)}
                   title="增加 +1"
                   style={{

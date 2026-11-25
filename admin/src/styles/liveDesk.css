@@ -621,3 +621,31 @@
     max-height: 92vh;
   }
 }
+
+.desk-operation-status {
+  margin: 0;
+  padding: 8px 16px;
+  min-height: 1.4em;
+  color: #334155;
+}
+
+.clock-readout,
+.clock-stoppage-form {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.clock-kickoff,
+.clock-stoppage {
+  font-size: 0.8rem;
+}
+
+.clock-stoppage-form {
+  flex-wrap: wrap;
+}
+
+.clock-stoppage-form input {
+  width: 4rem;
+}
